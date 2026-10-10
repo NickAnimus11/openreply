@@ -114,7 +114,8 @@ vi.mock("@/lib/queue/client", () => ({
   getDMQueue: () => ({
     add: mockQueueAdd,
   }),
-  getRedisConnection: vi.fn(),
+  // The per-comment lock calls set (NX) and eval; a Redis that always grants it keeps these tests about the job logic.
+  getRedisConnection: vi.fn(() => ({ set: async () => "OK", eval: async () => 1 })),
   POSTBACK_JOB_NAME: "process-postback",
   FOLLOWUP_JOB_NAME: "process-followup",
   MESSAGE_JOB_NAME: "process-message",

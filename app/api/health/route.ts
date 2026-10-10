@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { getDMQueue, getRedisConnection } from "@/lib/queue/client";
 import { getWorkerHealth } from "@/lib/ops/worker-health";
+import { getQueueStall } from "@/lib/ops/queue-stall";
 
 export const runtime = "nodejs";
 // Health must reflect live state (worker heartbeat, queue depth), never a
@@ -47,6 +48,18 @@ async function checkQueue(): Promise<HealthCheck & { counts?: unknown }> {
       "delayed",
       "failed"
     );
+    // A heartbeat only proves the worker process is up. If jobs are waiting and none
+    // are running, the worker is alive but not consuming.
+    const stall = await getQueueStall(getDMQueue());
+    if (stall.stalled) {
+      return {
+        status: "error",
+        detail: `Queue stalled: ${stall.waiting} job(s) waiting, none active, oldest waiting ${Math.round(
+          (stall.oldestWaitingAgeMs ?? 0) / 1000
+        )}s. The worker is not consuming; restart it.`,
+        counts,
+      };
+    }
     return { status: "ok", counts };
   } catch (error) {
     return {

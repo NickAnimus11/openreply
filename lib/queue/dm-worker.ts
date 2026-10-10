@@ -38,6 +38,7 @@ import {
   reserveWorkspaceDMSend,
 } from "@/lib/billing/usage";
 import { recordWorkerAlert } from "@/lib/ops/worker-health";
+import { withCommentLock } from "@/lib/queue/comment-lock";
 import {
   buildTrackedUrl,
   renderMessageWithTracking,
@@ -1378,7 +1379,17 @@ async function dispatchJob(job: Job<DmQueueJob>): Promise<void> {
   if (job.name === MESSAGE_JOB_NAME) {
     return processMessage(job as Job<ProcessMessageJob>);
   }
-  return processComment(job as Job<ProcessCommentJob>);
+  const comment = job as Job<ProcessCommentJob>;
+  const ran = await withCommentLock(
+    getRedisConnection(),
+    `${comment.data.instagramAccountId}:${comment.data.commentId}`,
+    () => processComment(comment)
+  );
+  if (!ran) {
+    console.log(
+      `[DM Worker] Job ${job.id} skipped: comment ${comment.data.commentId} is already being processed`
+    );
+  }
 }
 
 async function processJob(job: Job<DmQueueJob>): Promise<void> {
