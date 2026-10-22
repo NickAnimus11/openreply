@@ -124,7 +124,7 @@ Optional, for tuning the polling reconciler (defaults are fine to start):
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `COMMENT_POLL_INTERVAL_MS` | `300000` | How often the worker sweeps for missed comments (5 min). |
+| `COMMENT_POLL_INTERVAL_MS` | `1800000` | How often the worker sweeps for missed comments (30 min). Keep it above 5 min on Neon: shorter sweeps stop the database from scaling to zero and use up the free compute allowance. |
 | `COMMENT_POLL_MAX_PER_SWEEP` | `30` | Max new comments each campaign acts on per sweep. Keep it conservative; higher gets closer to Instagram's rate limits. |
 | `COMMENT_POLL_LOOKBACK_HOURS` | `72` | How far back a sweep considers comments. |
 
