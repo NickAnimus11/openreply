@@ -1096,9 +1096,50 @@ async function processFollowUp(job: Job<ProcessFollowUpJob>): Promise<void> {
         commenterName: commenterName ?? null,
       }),
     });
+    await recordFollowUpOutcome(automationId, userId, { sentAt: new Date() });
   } catch (error) {
     console.log(
       "[DM Worker] Failed to send follow-up message:",
+      formatError(error)
+    );
+    await recordFollowUpOutcome(automationId, userId, {
+      error: formatError(error),
+    });
+  }
+}
+
+/**
+ * Stamp the follow-up's outcome onto the DmLog row that started this chain.
+ *
+ * The job only carries the automation and the recipient, so the row is found by
+ * those: the most recent one, because a commenter who comments twice produces two
+ * rows and the follow-up belongs to the conversation just delivered.
+ *
+ * Never throws. A follow-up that was delivered must not be reported as failed
+ * because the bookkeeping write failed afterwards.
+ */
+async function recordFollowUpOutcome(
+  automationId: string,
+  commenterId: string,
+  outcome: { sentAt?: Date; error?: string }
+): Promise<void> {
+  try {
+    const row = await prisma.dmLog.findFirst({
+      where: { automationId, commenterId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    if (!row) return;
+    await prisma.dmLog.update({
+      where: { id: row.id },
+      data: {
+        followUpSentAt: outcome.sentAt ?? null,
+        followUpError: outcome.error ?? null,
+      },
+    });
+  } catch (error) {
+    console.log(
+      "[DM Worker] Failed to record follow-up outcome:",
       formatError(error)
     );
   }

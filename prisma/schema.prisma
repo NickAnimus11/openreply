@@ -244,6 +244,14 @@ model DmLog {
   publicReplySentAt DateTime?
   publicReplyError  String?
 
+  // The appreciation follow-up is sent by a delayed job, long after this row is
+  // written, and used to leave no trace in the database at all: on 2026-11-02 a
+  // follow-up that had in fact been delivered looked like a failure, and the only
+  // proof was a line in a log file on one laptop. Recorded here so delivery is
+  // auditable from the same row as the DM and the public reply.
+  followUpSentAt DateTime?
+  followUpError  String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
